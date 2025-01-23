@@ -6,7 +6,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 )
+
+var DumpRawJson = false
 
 type Switch struct {
 	Ip       string
@@ -77,6 +80,9 @@ func (s *Switch) fetch(path string) ([]byte, error) {
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
+	if DumpRawJson {
+		fmt.Fprintf(os.Stderr, "%v\n", string(body))
+	}
 	return body, err
 }
 
@@ -105,7 +111,6 @@ func (s *Switch) fetchAndUnwrap(path, toplevel string, inner any) error {
 	if err != nil {
 		return err
 	}
-	//fmt.Printf("%v\n", string(data))
 	var raw map[string]any
 	err = json.Unmarshal(data, &raw)
 	if err != nil {
@@ -140,6 +145,9 @@ func (s *Switch) Interfaces() ([]Iface, error) {
 }
 
 type SwitchInfo struct {
-	Ip       string
-	Hostname string
+	Ip        string
+	Hostname  string
+	Vendor    string
+	Model     string
+	SwVersion string
 }

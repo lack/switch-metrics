@@ -1,6 +1,8 @@
 package restconf
 
-import "strconv"
+import (
+	"strconv"
+)
 
 type DellSwitch struct {
 	Switch
@@ -51,33 +53,23 @@ func (s *DellSwitch) Interfaces() ([]Iface, error) {
 	return returnList, err
 }
 
-type DefaultDs struct {
-	ClockId string `json:"clock-identity"`
-}
-
-type CurrentDs struct {
-	Offset string `json:"offset-from-master"`
-	Steps  int    `json:"steps-removed"`
-}
-
-type ParentDs struct {
-	GrandmasterId string `json:"grandmaster-identity"`
-}
-
-type ServoStatus struct {
-	State  string `json:"servo-state"`
-	Status string `json:"lock-status"`
-}
-
-type ClockDs struct {
-	Local   DefaultDs `json:"default-ds"`
-	Current CurrentDs `json:"current-ds"`
-}
-
 type DellPtpState struct {
-	ClockDs ClockDs     `json:"clock-ds"`
-	Parent  ParentDs    `json:"parent-ds"`
-	Servo   ServoStatus `json:"servo-status"`
+	ClockDs struct {
+		Local struct {
+			ClockId string `json:"clock-identity"`
+		} `json:"default-ds"`
+		Current struct {
+			Offset string `json:"offset-from-master"`
+			Steps  int    `json:"steps-removed"`
+		} `json:"current-ds"`
+	} `json:"clock-ds"`
+	Parent struct {
+		GrandmasterId string `json:"grandmaster-identity"`
+	} `json:"parent-ds"`
+	Servo struct {
+		State  string `json:"servo-state"`
+		Status string `json:"lock-status"`
+	} `json:"servo-status"`
 }
 
 func (s *DellSwitch) GetPtpStatus() (PtpStatus, error) {
@@ -107,18 +99,33 @@ func (s *DellSwitch) GetPtpStatus() (PtpStatus, error) {
 	}, nil
 }
 
+type DellSoftware struct {
+	Name     string `json:"sw-name-long"`
+	Version  string `json:"sw-build-version"`
+	Platform string `json:"sw-platform"`
+}
+
 type DellSystem struct {
 	Hostname string `json:"hostname"`
+	Uptime   int    `json:"uptime"`
 }
 
 func (s *DellSwitch) Info() (SwitchInfo, error) {
+	var software DellSoftware
+	err := s.fetchAndUnwrap("dell-system-software:system-sw-state/sw-version", "dell-system-software:sw-version", &software)
+	if err != nil {
+		return SwitchInfo{}, err
+	}
 	var sys DellSystem
-	err := s.fetchAndUnwrap("dell-system:system", "dell-system:system", &sys)
+	err = s.fetchAndUnwrap("dell-system:system-state/system-status", "dell-system:system-status", &sys)
 	if err != nil {
 		return SwitchInfo{}, err
 	}
 	return SwitchInfo{
-		Ip:       s.Ip,
-		Hostname: sys.Hostname,
+		Ip:        s.Ip,
+		Hostname:  sys.Hostname,
+		Vendor:    "Dell",
+		Model:     software.Platform,
+		SwVersion: software.Version,
 	}, nil
 }

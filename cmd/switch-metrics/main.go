@@ -142,8 +142,9 @@ func main() {
 
 		fmt.Println("---")
 		for _, stat := range stats {
-			fmt.Printf("%s locked to %s offset %d\n",
-				stat.Info.Ip, stat.LastPtpStatus.GmId, stat.LastPtpStatus.Offset)
+			fmt.Printf("%s (%s) locked to %s offset %d\n",
+				stat.Info.Ip, stat.Info.Hostname, stat.LastPtpStatus.GmId, stat.LastPtpStatus.Offset)
+			fmt.Printf("  %s %s running %s\n", stat.Info.Vendor, stat.Info.Model, stat.Info.SwVersion)
 			fmt.Printf("  Lock reliability: %d/%d = %.1f%%\n", stat.LockCount, stat.PollCount, pct(stat.LockCount, stat.PollCount))
 			for gm, c := range stat.GmLockCount {
 				fmt.Printf("    %s %d/%d = %.1f%%\n", gm, c, stat.LockCount, pct(c, stat.LockCount))
