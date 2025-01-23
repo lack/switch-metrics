@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-	"math"
-	"strings"
 	"sync"
 	"time"
 
@@ -17,45 +15,11 @@ type SwitchResult struct {
 	err       error
 }
 
-type Histogram struct {
-	Buckets []int
-	Data    []int
-}
-
-func (h *Histogram) init() {
-	if h.Buckets[len(h.Buckets)-1] != math.MaxInt {
-		h.Buckets = append(h.Buckets, math.MaxInt)
-	}
-	h.Data = make([]int, len(h.Buckets))
-}
-
-func (h *Histogram) Add(value int) {
-	if len(h.Data) == 0 {
-		h.init()
-	}
-	for i, boundary := range h.Buckets {
-		if value < boundary {
-			h.Data[i] = h.Data[i] + 1
-			return
-		}
-	}
-}
-
-func (h *Histogram) BucketName(i int) string {
-	if i == 0 {
-		return fmt.Sprintf("<%d", h.Buckets[i])
-	}
-	if i == len(h.Buckets)-1 {
-		return fmt.Sprintf(">=%d", h.Buckets[i-1])
-	}
-	return fmt.Sprintf("[%d %d)", h.Buckets[i-1], h.Buckets[i])
-}
-
 type SwitchStats struct {
 	Info          restconf.SwitchInfo
 	LastErr       error
 	LastPtpStatus restconf.PtpStatus
-	Offsets       Histogram
+	Offsets       restconf.Histogram
 	PollCount     int
 	ErrCount      int
 	LockCount     int
@@ -102,7 +66,7 @@ func main() {
 		}
 		stats[info.Idx] = SwitchStats{
 			Info: info.Info,
-			Offsets: Histogram{
+			Offsets: restconf.Histogram{
 				Buckets: OffsetBuckets,
 			},
 			GmLockCount: make(map[string]int),
@@ -152,15 +116,8 @@ func main() {
 			for gm, c := range stat.GmLockCount {
 				fmt.Printf("    %s %d/%d = %.1f%%\n", gm, c, stat.LockCount, pct(c, stat.LockCount))
 			}
-			offsetHeader := strings.Builder{}
-			offsetValues := strings.Builder{}
-			for i, v := range stat.Offsets.Data {
-				header := stat.Offsets.BucketName(i)
-				offsetHeader.WriteString(header)
-				offsetHeader.WriteRune(' ')
-				offsetValues.WriteString(fmt.Sprintf("%*d ", len(header), v))
-			}
-			fmt.Printf("  %s\n  %s\n", offsetHeader.String(), offsetValues.String())
+			offsetHeader, offsetValues := stat.Offsets.Render()
+			fmt.Printf("  %s\n  %s\n", offsetHeader, offsetValues)
 		}
 	}
 }
