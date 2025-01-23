@@ -5,6 +5,7 @@ import (
 	"math"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/lack/switch-metrics/pkg/restconf"
 )
@@ -140,7 +141,9 @@ func main() {
 			stats[info.Idx] = stat
 		}
 
-		fmt.Println("---")
+		// TODO: Publish Prometheus endpoints...
+
+		fmt.Printf("--- %s ---\n", time.Now().Format(time.RFC3339))
 		for _, stat := range stats {
 			fmt.Printf("%s (%s) locked to %s offset %d\n",
 				stat.Info.Ip, stat.Info.Hostname, stat.LastPtpStatus.GmId, stat.LastPtpStatus.Offset)
@@ -160,26 +163,4 @@ func main() {
 			fmt.Printf("  %s\n  %s\n", offsetHeader.String(), offsetValues.String())
 		}
 	}
-
-	/*
-			info, err := s.Info()
-			if err != nil {
-				panic(err)
-			}
-			fmt.Printf("%+v\n", info)
-			status, err := s.GetPtpStatus()
-			if err != nil {
-				panic(err)
-			}
-			fmt.Printf("%+v\n", status)
-			/*
-				iflist, err := sw.Interfaces()
-				if err != nil {
-					panic(err)
-				}
-				for _, i := range iflist {
-					fmt.Printf("%s (%s): %s\n", i.Desc, i.Name, i.PtpCfg)
-				}
-		}
-	*/
 }
