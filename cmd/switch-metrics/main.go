@@ -116,8 +116,8 @@ func main() {
 			for gm, c := range stat.GmLockCount {
 				fmt.Printf("    %s %d/%d = %.1f%%\n", gm, c, stat.LockCount, pct(c, stat.LockCount))
 			}
-			offsetHeader, offsetValues := stat.Offsets.Render()
-			fmt.Printf("  %s\n  %s\n", offsetHeader, offsetValues)
+			offsetHeader, offsetValues, offsetMeans := stat.Offsets.Render()
+			fmt.Printf("  %s\n  %s\n  %s\n", offsetHeader, offsetValues, offsetMeans)
 		}
 	}
 }

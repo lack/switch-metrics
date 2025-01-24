@@ -9,6 +9,7 @@ import (
 type Histogram struct {
 	Buckets []int
 	Count   []int
+	Mean    []float64
 }
 
 func (h *Histogram) init() {
@@ -16,6 +17,7 @@ func (h *Histogram) init() {
 		h.Buckets = append(h.Buckets, math.MaxInt)
 	}
 	h.Count = make([]int, len(h.Buckets))
+	h.Mean = make([]float64, len(h.Buckets))
 }
 
 func (h *Histogram) Add(value int) {
@@ -24,7 +26,15 @@ func (h *Histogram) Add(value int) {
 	}
 	for i, boundary := range h.Buckets {
 		if value < boundary {
+			// Increment the count
 			h.Count[i] = h.Count[i] + 1
+			// Accumulate the average based on the value
+			if h.Count[i] > 1 {
+				count := float64(h.Count[i])
+				h.Mean[i] = (h.Mean[i] * ((count - 1) / count)) + (float64(value) / count)
+			} else {
+				h.Mean[i] = float64(value)
+			}
 			return
 		}
 	}
@@ -40,15 +50,17 @@ func (h *Histogram) BucketName(i int) string {
 	return fmt.Sprintf("[%d %d)", h.Buckets[i-1], h.Buckets[i])
 }
 
-// Render returns a two-string tuple; the header row, and the data row
-func (h *Histogram) Render() (string, string) {
+// Render returns a three-string tuple; the header row, counts, and the averages
+func (h *Histogram) Render() (string, string, string) {
 	header := strings.Builder{}
 	counts := strings.Builder{}
+	averages := strings.Builder{}
 	for i, v := range h.Count {
 		name := h.BucketName(i)
 		header.WriteString(name)
 		header.WriteRune(' ')
 		counts.WriteString(fmt.Sprintf("%*d ", len(name), v))
+		averages.WriteString(fmt.Sprintf("%*.1f ", len(name), h.Mean[i]))
 	}
-	return header.String(), counts.String()
+	return header.String(), counts.String(), averages.String()
 }
