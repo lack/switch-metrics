@@ -13,12 +13,14 @@ type SwitchResult struct {
 	Info      restconf.SwitchInfo
 	PtpStatus restconf.PtpStatus
 	err       error
+	duration  time.Duration
 }
 
 type SwitchStats struct {
 	Info          restconf.SwitchInfo
 	LastErr       error
 	LastPtpStatus restconf.PtpStatus
+	LastDuration  time.Duration
 	Offsets       restconf.Histogram
 	PollCount     int
 	ErrCount      int
@@ -79,11 +81,13 @@ func main() {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
+				start := time.Now()
 				ptpstatus, err := s.GetPtpStatus()
 				resultChan <- SwitchResult{
 					Idx:       i,
 					PtpStatus: ptpstatus,
 					err:       err,
+					duration:  time.Now().Sub(start),
 				}
 			}()
 		}
@@ -92,6 +96,7 @@ func main() {
 		for info := range resultChan {
 			stat := stats[info.Idx]
 			stat.PollCount += 1
+			stat.LastDuration = info.duration
 			if info.err != nil {
 				stat.LastErr = info.err
 				stat.ErrCount += 1
@@ -112,6 +117,7 @@ func main() {
 			fmt.Printf("%s (%s) locked to %s offset %d\n",
 				stat.Info.Ip, stat.Info.Hostname, stat.LastPtpStatus.GmId, stat.LastPtpStatus.Offset)
 			fmt.Printf("  %s %s running %s\n", stat.Info.Vendor, stat.Info.Model, stat.Info.SwVersion)
+			fmt.Printf("  Fetch duration: %+v\n", stat.LastDuration)
 			fmt.Printf("  Lock reliability: %d/%d = %.1f%%\n", stat.LockCount, stat.PollCount, pct(stat.LockCount, stat.PollCount))
 			for gm, c := range stat.GmLockCount {
 				fmt.Printf("    %s %d/%d = %.1f%%\n", gm, c, stat.LockCount, pct(c, stat.LockCount))
