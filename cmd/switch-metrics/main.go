@@ -100,13 +100,14 @@ func main() {
 			if info.err != nil {
 				stat.LastErr = info.err
 				stat.ErrCount += 1
+			} else {
+				stat.LastPtpStatus = info.PtpStatus
+				if info.PtpStatus.SyncState == restconf.SYNC_STATE_LOCKED {
+					stat.LockCount += 1
+					stat.GmLockCount[info.PtpStatus.GmId] = stat.GmLockCount[info.PtpStatus.GmId] + 1
+				}
+				stat.Offsets.Add(info.PtpStatus.Offset)
 			}
-			stat.LastPtpStatus = info.PtpStatus
-			if info.PtpStatus.SyncState == restconf.SYNC_STATE_LOCKED {
-				stat.LockCount += 1
-				stat.GmLockCount[info.PtpStatus.GmId] = stat.GmLockCount[info.PtpStatus.GmId] + 1
-			}
-			stat.Offsets.Add(info.PtpStatus.Offset)
 			stats[info.Idx] = stat
 		}
 
