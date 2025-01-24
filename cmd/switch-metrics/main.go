@@ -36,6 +36,8 @@ var OffsetBuckets = []int{
 	-200, -100, -75, -50, -25, 0, 25, 50, 75, 100, 200,
 }
 
+var PollInterval = 500 * time.Millisecond
+
 func main() {
 	switches, err := restconf.LoadSwitches()
 	if err != nil {
@@ -75,6 +77,7 @@ func main() {
 		}
 	}
 
+	pollTimer := time.NewTimer(PollInterval)
 	for {
 		resultChan = make(chan SwitchResult, len(swlist))
 		for i, s := range swlist {
@@ -126,5 +129,9 @@ func main() {
 			offsetHeader, offsetValues, offsetMeans := stat.Offsets.Render()
 			fmt.Printf("  %s\n  %s\n  %s\n", offsetHeader, offsetValues, offsetMeans)
 		}
+
+		// Wait for poll timer to throttle us if needes
+		<-pollTimer.C
+		pollTimer.Reset(PollInterval)
 	}
 }
