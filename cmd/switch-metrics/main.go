@@ -11,11 +11,11 @@ import (
 var SummaryInterval = 10 * time.Second
 
 func main() {
-	fmt.Printf("Preparing switch statistics...")
+	fmt.Printf("Preparing switch statistics...\n")
 	statsReady := make(chan StatsList)
 	go Gather(statsReady)
 	stats := <-statsReady
-	fmt.Printf("Switch statistics are ready")
+	fmt.Printf("Switch statistics are ready\n")
 
 	http.Handle("/metrics", promhttp.Handler())
 	go http.ListenAndServe(":2121", nil)
