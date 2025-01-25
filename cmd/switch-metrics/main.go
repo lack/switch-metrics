@@ -2,7 +2,10 @@ package main
 
 import (
 	"fmt"
+	"net/http"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var SummaryInterval = 10 * time.Second
@@ -14,7 +17,9 @@ func main() {
 	stats := <-statsReady
 	fmt.Printf("Switch statistics are ready")
 
-	// TODO: Serve prometheus metrics from `stats`
+	http.Handle("/metrics", promhttp.Handler())
+	go http.ListenAndServe(":2121", nil)
+	fmt.Printf("Serving metrics at http://localhost:2121/metrics\n")
 
 	loopTimer := time.NewTimer(SummaryInterval)
 	for {
