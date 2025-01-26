@@ -5,12 +5,20 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var SummaryInterval = 10 * time.Second
 
 func main() {
+	reg := prometheus.NewPedanticRegistry()
+	reg.MustRegister(
+		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
+		collectors.NewGoCollector(),
+	)
+
 	fmt.Printf("Preparing switch statistics...\n")
 	statsReady := make(chan StatsList)
 	go Gather(statsReady)
@@ -18,7 +26,7 @@ func main() {
 	fmt.Printf("Switch statistics are ready\n")
 
 	http.Handle("/metrics", promhttp.Handler())
-	go http.ListenAndServe(":2121", nil)
+	go http.ListenAndServe(":2121", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
 	fmt.Printf("Serving metrics at http://localhost:2121/metrics\n")
 
 	loopTimer := time.NewTimer(SummaryInterval)
