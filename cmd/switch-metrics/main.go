@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/lack/switch-metrics/pkg/restconf"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -30,6 +31,11 @@ var (
 		"A counter of events when the PTP time was not \"locked\"",
 		commonSwitchLabels, nil,
 	)
+	offsetHistogram = prometheus.NewDesc(
+		"switchmetrics_ptp_offset_histogram",
+		"Ptp offset histogram",
+		commonSwitchLabels, nil,
+	)
 )
 
 func (s *SwitchStats) LabelValues() []string {
@@ -42,6 +48,19 @@ func (s *SwitchStats) LabelValues() []string {
 	}
 }
 
+func PromHg(h *restconf.Histogram) (map[float64]uint64, uint64) {
+	var count uint64
+	buckets := make(map[float64]uint64)
+	lastBucketIndex := len(h.Buckets) - 1
+	for i, v := range h.Count {
+		count += uint64(v)
+		if i < lastBucketIndex {
+			buckets[float64(h.Buckets[i])] = count
+		}
+	}
+	return buckets, count
+}
+
 func (sl StatsList) Collect(ch chan<- prometheus.Metric) {
 	for _, s := range sl {
 		ch <- prometheus.MustNewConstMetric(
@@ -52,6 +71,9 @@ func (sl StatsList) Collect(ch chan<- prometheus.Metric) {
 			unlockedCounter, prometheus.CounterValue,
 			float64(s.PollCount-s.LockCount),
 			s.LabelValues()...)
+		buckets, count := PromHg(&s.Offsets)
+		ch <- prometheus.MustNewConstHistogram(
+			offsetHistogram, count, 0.0, buckets, s.LabelValues()...)
 	}
 }
 
