@@ -12,18 +12,67 @@ import (
 
 var SummaryInterval = 10 * time.Second
 
+var (
+	commonSwitchLabels = []string{
+		"hostname",
+		"ip",
+		"vendor",
+		"model",
+		"swversion",
+	}
+	offsetGauge = prometheus.NewDesc(
+		"switchmetrics_ptp_offset_ns",
+		"PTP offset compared to GrandMaster in ns",
+		commonSwitchLabels, nil,
+	)
+	unlockedCounter = prometheus.NewDesc(
+		"switchmetrics_ptp_unlock_events",
+		"A counter of events when the PTP time was not \"locked\"",
+		commonSwitchLabels, nil,
+	)
+)
+
+func (s *SwitchStats) LabelValues() []string {
+	return []string{
+		s.Info.Hostname,
+		s.Info.Ip,
+		s.Info.Vendor,
+		s.Info.Model,
+		s.Info.SwVersion,
+	}
+}
+
+func (sl StatsList) Collect(ch chan<- prometheus.Metric) {
+	for _, s := range sl {
+		ch <- prometheus.MustNewConstMetric(
+			offsetGauge, prometheus.GaugeValue,
+			float64(s.LastPtpStatus.Offset),
+			s.LabelValues()...)
+		ch <- prometheus.MustNewConstMetric(
+			unlockedCounter, prometheus.CounterValue,
+			float64(s.PollCount-s.LockCount),
+			s.LabelValues()...)
+	}
+}
+
+func (sl StatsList) Describe(ch chan<- *prometheus.Desc) {
+	prometheus.DescribeByCollect(sl, ch)
+}
+
 func main() {
 	reg := prometheus.NewPedanticRegistry()
-	reg.MustRegister(
-		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
-		collectors.NewGoCollector(),
-	)
 
 	fmt.Printf("Preparing switch statistics...\n")
 	statsReady := make(chan StatsList)
 	go Gather(statsReady)
 	stats := <-statsReady
 	fmt.Printf("Switch statistics are ready\n")
+
+	reg.MustRegister(
+		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
+		collectors.NewGoCollector(),
+		stats,
+	)
 
 	http.Handle("/metrics", promhttp.Handler())
 	go http.ListenAndServe(":2121", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
