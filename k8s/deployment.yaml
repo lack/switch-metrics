@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: switch-metrics
+  labels:
+    app: switch-metrics
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: switch-metrics
+  template:
+    metadata:
+      labels:
+        app: switch-metrics
+    spec:
+      containers:
+        - name: switch-metrics
+          image: quay.io/jramsay/switch-metrics:latest
+          ports:
+            - name: http-service
+              containerPort: 2121
+          livenessProbe:
+            httpGet:
+              path: /livez
+              port: http-service
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http-service
+          volumeMounts:
+            - name: switch-config
+              readOnly: true
+              mountPath: /config/switches.yaml
+              subPath: switches.yaml
+      volumes:
+        - name: switch-config
+          secret:
+            secretName: switch-config
