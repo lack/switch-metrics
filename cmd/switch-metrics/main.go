@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/lack/switch-metrics/pkg/restconf"
@@ -82,7 +83,23 @@ func (sl StatsList) Describe(ch chan<- *prometheus.Desc) {
 }
 
 func main() {
-	reg := prometheus.NewPedanticRegistry()
+	ready := false
+	http.HandleFunc("/livez", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "OK")
+	})
+	http.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
+		if ready {
+			fmt.Fprintf(w, "OK")
+		} else {
+			http.Error(w, "Not ready", http.StatusServiceUnavailable)
+		}
+	})
+	port := os.Getenv("LISTEN_PORT")
+	if port == "" {
+		port = "2121"
+	}
+	go http.ListenAndServe(":"+port, nil)
+	fmt.Printf("Listening on http://localhost:%s\n", port)
 
 	fmt.Printf("Preparing switch statistics...\n")
 	statsReady := make(chan StatsList)
@@ -90,15 +107,15 @@ func main() {
 	stats := <-statsReady
 	fmt.Printf("Switch statistics are ready\n")
 
+	reg := prometheus.NewPedanticRegistry()
 	reg.MustRegister(
 		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
 		collectors.NewGoCollector(),
 		stats,
 	)
-
-	http.Handle("/metrics", promhttp.Handler())
-	go http.ListenAndServe(":2121", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
-	fmt.Printf("Serving metrics at http://localhost:2121/metrics\n")
+	http.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
+	ready = true
+	fmt.Printf("Serving metrics at http://localhost:%s/metrics\n", port)
 
 	loopTimer := time.NewTimer(SummaryInterval)
 	for {
